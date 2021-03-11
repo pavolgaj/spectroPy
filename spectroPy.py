@@ -1,32 +1,132 @@
+#/usr/local/bin/python3
+#spectroPy v0.1
+#(c) Pavol Gajdos, 11.3.2021
+
 import sys
 import time
 import numpy as np
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as mpl
-from astropy.io import fits as pyfits
+from astropy.io import fits
 
 name=sys.argv[1]
 dat=[]
 dat0=[]
+res=1
 
 colors='rgb'
 
 def plot_spektrum():
     '''plot spectrum in 1-3 channels'''
+    if len(dat)==0:
+        print('Calibrate spectrum!')
+        return
+
     mpl.figure()
     x=dat[:,0]
     if dat.shape[1]==2: ch=1
-    else: ch=dat0.shape[1]-1
+    else: ch=dat.shape[1]-1
 
     if ch==1: mpl.plot(x,dat[:,1],'k-')
     else:
-        for i in range(ch): mpl.plot(x,dat[:,i+1],colors[i]+'-')
+        for i in range(ch):
+            mpl.plot(x,dat[:,i+1],colors[i]+'-',label='Channel '+str(i+1))
+            mpl.legend()
     mpl.xlabel('Wavelength (A)')
+    mpl.ylabel('Intensity')
     mpl.show()
 
 def save():
     '''save spectrum in 1-3 channels'''
-    return
+    if len(dat)==0:
+        print('Calibrate spectrum!')
+        return
+    ans=input('Save to file: csv (c) / text (t) / fits (f) ')
+    name1=name[:name.rfind('.')]+'-spectrum'
+    if dat.shape[1]==2: ch=1
+    else: ch=dat.shape[1]-1
+    if ans=='c':
+        ans=input('Save to file "'+name1+'.csv"? (y/n) ')
+        if ans=='y': name1+='.csv'
+        else:
+            name1=input('Save to file: ').strip()
+            if len(name1)==0: return
+        if ch==1: head=',Intensity'
+        else:
+            head=''
+            for i in range(ch): head+=',Intensity_in_channel_'+str(i+1)
+        np.savetxt(name1,dat,fmt='%f',delimiter=',',header='Wavelength(A)'+head,comments='')
+        print('Saved')
+
+
+    elif ans=='t':
+        ans=input('Save to file "'+name1+'.dat"? (y/n) ')
+        if ans=='y': name1+='.dat'
+        else:
+            name1=input('Save to file: ').strip()
+            if len(name1)==0: return
+        if ch==1: head='     Intensity'
+        else:
+            head=''
+            for i in range(ch): head+='     Intensity in channel '+str(i+1)
+        np.savetxt(name1,dat,fmt='%f',delimiter='     ',header='Wavelength (A)'+head)
+        print('Saved')
+
+    elif ans=='f':
+        ans=input('Save to file "'+name1+'.fits"? (y/n) ')
+        if ans=='y': name1+='.fits'
+        else:
+            name1=input('Save to file: ').strip()
+            if len(name1)==0: return
+
+        hdu=fits.PrimaryHDU(dat[:,1])
+        hdu.header['CTYPE1']='Wavelength'
+        hdu.header.comments['CTYPE1']='Axis Type'
+        hdu.header['CUNIT1']='Angstrom'
+        hdu.header.comments['CUNIT1']='Wavelength unit'
+        hdu.header['CDELT1']=res
+        hdu.header.comments['CDELT1']='Coordinate increment'
+        hdu.header['CRPIX1']=1
+        hdu.header.comments['CRPIX1']='Reference pixel'
+        hdu.header['CRVAL1']=dat[0,0]
+        hdu.header.comments['CRVAL1']='Coordinate at reference pixel'
+        hdu.header['SWCREATE']='spectroPy'
+        hdu.name='Intensity'
+        if ch==1: hdu.writeto(name1,overwrite=True)
+        else:
+            hdu.name='Channel_1'
+            hdu1=fits.ImageHDU(dat[:,2])
+            hdu1.header['CTYPE1']='Wavelength'
+            hdu1.header.comments['CTYPE1']='Axis Type'
+            hdu1.header['CUNIT1']='Angstrom'
+            hdu1.header.comments['CUNIT1']='Wavelength unit'
+            hdu1.header['CDELT1']=res
+            hdu1.header.comments['CDELT1']='Coordinate increment'
+            hdu1.header['CRPIX1']=1
+            hdu1.header.comments['CRPIX1']='Reference pixel'
+            hdu1.header['CRVAL1']=dat[0,0]
+            hdu1.header.comments['CRVAL1']='Coordinate at reference pixel'
+            hdu1.header['SWCREATE']='spectroPy'
+            hdu1.name='Channel_2'
+            if ch==2:
+                hdul=fits.HDUList([hdu,hdu1])
+            else:
+                hdu2=fits.ImageHDU(dat[:,3])
+                hdu2.header['CTYPE1']='Wavelength'
+                hdu2.header.comments['CTYPE1']='Axis Type'
+                hdu2.header['CUNIT1']='Angstrom'
+                hdu2.header.comments['CUNIT1']='Wavelength unit'
+                hdu2.header['CDELT1']=res
+                hdu2.header.comments['CDELT1']='Coordinate increment'
+                hdu2.header['CRPIX1']=1
+                hdu2.header.comments['CRPIX1']='Reference pixel'
+                hdu2.header['CRVAL1']=dat[0,0]
+                hdu2.header.comments['CRVAL1']='Coordinate at reference pixel'
+                hdu2.header['SWCREATE']='spectroPy'
+                hdu2.name='Channel_3'
+                hdul=fits.HDUList([hdu,hdu1,hdu2])
+            hdul.writeto(name1,overwrite=True)
+        print('Saved')
 
 def fit_gauss(x,y,sgn):
     '''fit by Gauss profile'''
@@ -58,71 +158,100 @@ def fit_gauss(x,y,sgn):
 
     return popt[1]
 
-def calibrate(n=1):
-    '''calibrate using 1/2 points'''
-    global dat
+def plot(data,chI=None,title=None,manipulate=True):
+    '''function for ploting for crop and calibrate'''
+    MAX_CLICK = 0.5 # in seconds; anything longer is a drag motion
 
-    def plot(chI=None,title=None):
-        MAX_CLICK = 0.5 # in seconds; anything longer is a drag motion
+    global xmin,xmax,time_onclick,figs
 
-        global xmin,xmax,time_onclick,figs
+    def onclick(event):
+        global time_onclick
+        time_onclick=time.time()
 
-        def onclick(event):
-            global time_onclick
-            time_onclick=time.time()
+    def onNoclick(event):
+        global xmin,xmax,figs
 
-        def onNoclick(event):
-            global xmin,xmax,figs
+        if time.time()-time_onclick>MAX_CLICK: return
+        xx=event.xdata
+        xlim=mpl.xlim()
+        ylim=mpl.ylim()
+        if event.button==1: xmin=xx
+        elif event.button==3: xmax=xx
 
-            if time.time()-time_onclick>MAX_CLICK: return
-            xx=event.xdata
-            xlim=mpl.xlim()
-            ylim=mpl.ylim()
-            if event.button==1: xmin=xx
-            elif event.button==3: xmax=xx
-
-            for i in figs: i.pop(0).remove()
-
-            figs=[]
-            if xmin>-1e10:
-                figs.append(mpl.plot([xmin,xmin],[ylim[0],ylim[1]],'r--'))
-            if xmax>-1e10:
-                figs.append(mpl.plot([xmax,xmax],[ylim[0],ylim[1]],'r--'))
-            if xmax>xmin and xmin>-1e10:
-                figs.append(mpl.plot([xmin,xmax],[(ylim[0]+ylim[1])/2,(ylim[0]+ylim[1])/2],'r--'))
-            #print x[ind][0],y[ind][0]
-            fig.canvas.draw()
-            mpl.xlim(xlim)
-            mpl.ylim(ylim)
-
-        xmin=-1e10
-        xmax=-1e10
-        fig=mpl.figure()
+        for i in figs: i.pop(0).remove()
 
         figs=[]
+        if xmin>-1e10:
+            figs.append(mpl.plot([xmin,xmin],[ylim[0],ylim[1]],'r--'))
+        if xmax>-1e10:
+            figs.append(mpl.plot([xmax,xmax],[ylim[0],ylim[1]],'r--'))
+        if xmax>xmin and xmin>-1e10:
+            figs.append(mpl.plot([xmin,xmax],[(ylim[0]+ylim[1])/2,(ylim[0]+ylim[1])/2],'r--'))
+        #print x[ind][0],y[ind][0]
+        fig.canvas.draw()
+        mpl.xlim(xlim)
+        mpl.ylim(ylim)
 
-        if chI is None:
-            if ch==1: mpl.plot(x,dat0[:,1],'k-')
-            else:
-                for i in range(ch): mpl.plot(x,dat0[:,i+1],colors[i]+'-')
+    xmin=-1e10
+    xmax=-1e10
+    fig=mpl.figure()
+
+    figs=[]
+
+    if data.shape[1]==2: ch=1
+    else: ch=data.shape[1]-1
+
+    if chI is None:
+        if ch==1: mpl.plot(data[:,0],data[:,1],'k-')
         else:
-            mpl.plot(x,dat0[:,chI],'k-')
-            fig.canvas.mpl_connect('button_press_event',onclick)
-            fig.canvas.mpl_connect('button_release_event',onNoclick)
+            for i in range(ch): mpl.plot(data[:,0],data[:,i+1],colors[i]+'-',label='Channel '+str(i+1))
+            mpl.legend()
+    else: mpl.plot(data[:,0],data[:,chI],'k-')
 
-        if title is not None: mpl.title(title)
-        mpl.show()
+    if manipulate:
+        fig.canvas.mpl_connect('button_press_event',onclick)
+        fig.canvas.mpl_connect('button_release_event',onNoclick)
 
-        return xmin,xmax
+    if title is not None: mpl.title(title)
+    mpl.show()
+
+    return xmin,xmax
+
+def crop():
+    '''crop spectrum'''
+    global dat
+
+    if len(dat)==0:
+        print('Calibrate spectrum!')
+        return
+
+    print('\nSelect region to crop (keep it):')
+    print('Left click - left border')
+    print('Right click - right border')
+
+    i1,i2=plot(dat,title='Crop spectrum')
+
+    ans=input('Already crop spectrum? (y/n) ')
+    if ans=='y':
+        x=dat[:,0]
+
+        if i1>=i2: return
+        i=np.where((x>i1)*(x<i2))[0]
+
+        dat=dat[i,:]
+
+def calibrate(n=1):
+    '''calibrate using 1/2 points'''
+    global dat,res
 
     x=dat0[:,0]
     if dat0.shape[1]==2: ch=1
     elif dat0.shape[1]<=4: ch=dat0.shape[1]-1
     else: ch=3
 
-    plot(title='Input data')
+    plot(dat0,title='Input data',manipulate=False)
 
-    if ch==1: 
+    if ch==1:
         chI=1
         chs=[1]
     else:
@@ -140,7 +269,7 @@ def calibrate(n=1):
             print('Channel',chI)
             print('Left click - left border')
             print('Right click - right border')
-            i1,i2=plot(chI,'Select region with 0th order spectra for channel '+str(chI))
+            i1,i2=plot(dat0,chI,'Select region with 0th order spectra for channel '+str(chI))
             if i1>=i2: return
             i=np.where((x>i1)*(x<i2))[0]
 
@@ -157,7 +286,7 @@ def calibrate(n=1):
                     if ans1=='n':return
             else: input('Problem with fitting. Select different region.')
     pos0=np.average(pos0)
-    print('Peak possition:',round(pos0,2))
+    if len(chs)>1: print('Peak possition:',round(pos0,2))
 
     if n==1:
         ans=input('Spectral resolution (A/px): ')
@@ -172,7 +301,7 @@ def calibrate(n=1):
                 print('Channel',chI)
                 print('Left click - left border')
                 print('Right click - right border')
-                i1,i2=plot(chI,'Select region with known spectral line for channel '+str(chI))
+                i1,i2=plot(dat0,chI,'Select region with known spectral line for channel '+str(chI))
                 if i1>=i2: return
                 i=np.where((x>i1)*(x<i2))[0]
 
@@ -189,7 +318,7 @@ def calibrate(n=1):
                         if ans1=='n':return
                 else: input('Problem with fitting. Select different region.')
         pos1=np.average(pos1)
-        print('Peak possition:',round(pos1,2))
+        if len(chs)>1: print('Peak possition:',round(pos1,2))
 
         ans=input('Wavelength of line (A): ')
         res=float(ans)/(pos1-pos0)
@@ -200,13 +329,15 @@ def calibrate(n=1):
     dat[:,0]=lam
     for i in range(ch): dat[:,i+1]=dat0[:,i+1]
 
+    print('Calibrated')
     return lam
 
 def menu():
     print('calibrate - 1 point: 1')
     print('calibrate - 2 points: 2')
-    print('save spectrum: 3')
+    print('crop spectrum: 3')
     print('plot spectrum: 4')
+    print('save spectrum: 5')
     print('exit: 0')
     print('========================')
     opt=input('option: ')
@@ -215,16 +346,19 @@ def menu():
         return
     elif int(opt)==1: calibrate(1)
     elif int(opt)==2: calibrate(2)
-    elif int(opt)==3: save()
+    elif int(opt)==3: crop()
     elif int(opt)==4: plot_spektrum()
+    elif int(opt)==5: save()
     print('========================\n')
     menu()
 
+print('spectroPy v0.1 - (c) Pavol Gajdos 2021\n')
 
 if '.fit' in name:
     #load fits image
-    fits=pyfits.open(name)
+    f=fits.open(name)
     #image/spectrum?
+    #TODO...
 
 else:
     #load spectrum
@@ -232,20 +366,28 @@ else:
     lines=f.readlines()
     f.close()
 
+    #detect header
+    header=0
+    for l in lines:
+        if l.strip()[0] not in '-+0123456789.#': header+=1
+        else: break
+
     #detect separator type
     l=lines[20]
     sep=''
     for x in l.strip():
-        if x in '0123456789.':
+        if x in '-+0123456789.':
             if len(sep)>0: break
         else: sep+=x
-
-    #detect header
-    header=0
-    for l in lines:
-        if l.strip()[0] not in '0123456789.#': header+=1
-        else: break
+    if len(sep)==0: sep=' '
 
     dat0=np.loadtxt(name,delimiter=sep,skiprows=header)
+    if len(dat0.shape)==1:
+        #only intensity
+        dat0=np.column_stack((dat0,dat0))
+        dat0[:,0]=np.arange(0,len(dat0[:,1]),1)
+    if min(dat0[:,0])==0 and max(dat0[:,0])==0:
+        #input from vSpec
+        dat0[:,0]=np.arange(0,len(dat0[:,1]),1)
 
 menu()
