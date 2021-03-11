@@ -122,7 +122,9 @@ def calibrate(n=1):
 
     plot(title='Input data')
 
-    if ch==1: chI=1
+    if ch==1: 
+        chI=1
+        chs=[1]
     else:
         chs=' / '.join([str(x+1) for x in range(ch)])
         if ch>1: chs+=' / a (all)'
@@ -167,6 +169,7 @@ def calibrate(n=1):
             ans1='y'  #repeat?
             while ans1=='y':
                 print('\nSelect region with known spectral line:')
+                print('Channel',chI)
                 print('Left click - left border')
                 print('Right click - right border')
                 i1,i2=plot(chI,'Select region with known spectral line for channel '+str(chI))
