@@ -3,13 +3,13 @@
 #(c) Pavol Gajdos, 11.3.2021
 
 import sys
+import os
 import time
 import numpy as np
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as mpl
 from astropy.io import fits
 
-name=sys.argv[1]
 dat=[]
 dat0=[]
 res=1
@@ -342,7 +342,7 @@ def menu():
     print('========================')
     opt=input('option: ')
     if int(opt)==0:
-        #exit()
+        #sys.exit()
         return
     elif int(opt)==1: calibrate(1)
     elif int(opt)==2: calibrate(2)
@@ -353,6 +353,14 @@ def menu():
     menu()
 
 print('spectroPy v0.1 - (c) Pavol Gajdos 2021\n')
+
+if len(sys.argv)>1: name=sys.argv[1]
+else: name=input('Input file: ').strip()
+
+if not os.path.isfile(name):
+    print('File "'+name+'" is not found!')
+    input()
+    sys.exit()
 
 if '.fit' in name:
     #load fits image
@@ -390,4 +398,4 @@ else:
         #input from vSpec
         dat0[:,0]=np.arange(0,len(dat0[:,1]),1)
 
-menu()
+menu()  
