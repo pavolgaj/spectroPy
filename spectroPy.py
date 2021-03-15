@@ -329,7 +329,7 @@ def calibrate(n=1):
     dat=np.zeros(dat0.shape)
     dat[:,0]=lam
     for i in range(ch): dat[:,i+1]=dat0[:,i+1]
-    
+
     if res<0:
         res*=-1
         dat=dat[::-1,:]
@@ -343,6 +343,7 @@ def menu():
     print('crop spectrum: 3')
     print('plot spectrum: 4')
     print('save spectrum: 5')
+    print('load new file: 6')
     print('exit: 0')
     print('========================')
     opt=input('option: ')
@@ -352,21 +353,62 @@ def menu():
     elif int(opt)==3: crop()
     elif int(opt)==4: plot_spektrum()
     elif int(opt)==5: save()
+    elif int(opt)==6: load1()
     print('========================\n')
     # load new...?
     menu()
-    
+
+def load1():
+    name=input('Input file: ').strip()
+    if not os.path.isfile(name):
+        print('File "'+name+'" is not found!')
+        input()
+    else: load(name)
+
 def load(name):
-    global dat, dat0
-    
+    global dat,dat0,res
+
+    dat=[]
+    dat0=[]
+    res=1
+
     if '.fit' in name:
         #load fits image
-        f=fits.open(name)
-        #image -> error
-        #raw profile/spectrum?
-        #TODO...
+        hdu=fits.open(name)
 
-    else:
+        tmp=[]
+
+        error=True
+        ask=True
+        for h in hdu:
+            header=h.header
+            if header['NAXIS']>1: continue #2D image
+            if header['NAXIS1']<100: continue #no data
+            error=False
+
+            if 'CDELT1' in header and ask:
+                ans=input('Spectrum is calibrated. Load calibration from file? (y/n) ')
+                ask=False
+                if ans=='y':
+                    res=header['CDELT1']
+                    w_start=header['CRVAL1']
+                    w_px=header['CRPIX1']
+            tmp.append(h.data)
+
+        if error:
+            print('2D images are not supported!')
+            input()
+            load1()
+        else:
+            dat0=np.zeros((len(tmp[0]),len(tmp)+1))
+            dat0[:,0]=np.arange(0,len(tmp[0]),1)
+            for i in range(len(tmp)): dat0[:,i+1]=tmp[i]
+            if not res==1:
+                dat=np.zeros(dat0.shape)
+                dat[:,0]=(dat0[:,0]-w_px)*res+w_start
+                for i in range(len(tmp)): dat[:,i+1]=dat0[:,i+1]
+
+    elif '.csv' in name or '.dat' in name or '.txt' in name:
         #load spectrum
         f=open(name,'r')
         lines=f.readlines()
@@ -396,6 +438,11 @@ def load(name):
             #input from vSpec
             dat0[:,0]=np.arange(0,len(dat0[:,1]),1)
 
+    else:
+        print('Incorrect file type!')
+        input()
+        load1()
+
 print('spectroPy v0.1 - (c) Pavol Gajdos 2021\n')
 
 if len(sys.argv)>1: name=sys.argv[1]
@@ -404,8 +451,8 @@ else: name=input('Input file: ').strip()
 if not os.path.isfile(name):
     print('File "'+name+'" is not found!')
     input()
-    sys.exit()
+    load1()
 
 load(name)
 
-menu()  
+menu()
