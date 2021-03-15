@@ -372,7 +372,7 @@ def load(name):
     dat0=[]
     res=1
 
-    if '.fit' in name:
+    if '.fit' in name.lower():
         #load fits image
         hdu=fits.open(name)
 
@@ -387,12 +387,13 @@ def load(name):
             error=False
 
             if 'CDELT1' in header and ask:
-                ans=input('Spectrum is calibrated. Load calibration from file? (y/n) ')
-                ask=False
-                if ans=='y':
-                    res=header['CDELT1']
-                    w_start=header['CRVAL1']
-                    w_px=header['CRPIX1']
+                if header['CDELT1']>0:
+                    ans=input('Spectrum is calibrated. Load calibration from file? (y/n) ')
+                    ask=False
+                    if ans=='y':
+                        res=header['CDELT1']
+                        w_start=header['CRVAL1']
+                        w_px=header['CRPIX1']
             tmp.append(h.data)
 
         if error:
@@ -408,7 +409,7 @@ def load(name):
                 dat[:,0]=(dat0[:,0]-w_px)*res+w_start
                 for i in range(len(tmp)): dat[:,i+1]=dat0[:,i+1]
 
-    elif '.csv' in name or '.dat' in name or '.txt' in name:
+    elif '.csv' in name.lower() or '.dat' in name.lower() or '.txt' in name.lower():
         #load spectrum
         f=open(name,'r')
         lines=f.readlines()
