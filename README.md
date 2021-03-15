@@ -1,5 +1,5 @@
 # spectroPy
- Calibration and manipulation with grating spectra in Python.
+ Calibration and manipulation with grating spectra in Python. Focused mainly on spectra obtained using StarAnalyser SA-100 and SA-200.
  
  __Requirements:__
  * python
