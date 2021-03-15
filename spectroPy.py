@@ -20,19 +20,20 @@ def plot_spektrum():
     '''plot spectrum in 1-3 channels'''
     if len(dat)==0:
         print('Calibrate spectrum!')
-        return
+        data=dat0
+    else: data=dat
 
     mpl.figure()
-    x=dat[:,0]
-    if dat.shape[1]==2: ch=1
-    else: ch=dat.shape[1]-1
+    x=data[:,0]
+    if data.shape[1]==2: ch=1
+    else: ch=data.shape[1]-1
 
-    if ch==1: mpl.plot(x,dat[:,1],'k-')
+    if ch==1: mpl.plot(x,data[:,1],'k-')
     else:
         for i in range(ch):
-            mpl.plot(x,dat[:,i+1],colors[i]+'-',label='Channel '+str(i+1))
+            mpl.plot(x,data[:,i+1],colors[i]+'-',label='Channel '+str(i+1))
             mpl.legend()
-    mpl.xlabel('Wavelength (A)')
+    if len(dat)>0: mpl.xlabel('Wavelength (A)')
     mpl.ylabel('Intensity')
     mpl.show()
 
@@ -322,12 +323,16 @@ def calibrate(n=1):
 
         ans=input('Wavelength of line (A): ')
         res=float(ans)/(pos1-pos0)
-        print('Spectral resolution (A/px):',round(res,3))
+        print('Spectral resolution (A/px):',round(abs(res),3))
 
     lam=(x-pos0)*res
     dat=np.zeros(dat0.shape)
     dat[:,0]=lam
     for i in range(ch): dat[:,i+1]=dat0[:,i+1]
+    
+    if res<0:
+        res*=-1
+        dat=dat[::-1,:]
 
     print('Calibrated')
     return lam
@@ -341,16 +346,55 @@ def menu():
     print('exit: 0')
     print('========================')
     opt=input('option: ')
-    if int(opt)==0:
-        #sys.exit()
-        return
+    if int(opt)==0: sys.exit()
     elif int(opt)==1: calibrate(1)
     elif int(opt)==2: calibrate(2)
     elif int(opt)==3: crop()
     elif int(opt)==4: plot_spektrum()
     elif int(opt)==5: save()
     print('========================\n')
+    # load new...?
     menu()
+    
+def load(name):
+    global dat, dat0
+    
+    if '.fit' in name:
+        #load fits image
+        f=fits.open(name)
+        #image -> error
+        #raw profile/spectrum?
+        #TODO...
+
+    else:
+        #load spectrum
+        f=open(name,'r')
+        lines=f.readlines()
+        f.close()
+
+        #detect header
+        header=0
+        for l in lines:
+            if l.strip()[0] not in '-+0123456789.#': header+=1
+            else: break
+
+        #detect separator type
+        l=lines[20]
+        sep=''
+        for x in l.strip():
+            if x in '-+0123456789.':
+                if len(sep)>0: break
+            else: sep+=x
+        if len(sep)==0: sep=' '
+
+        dat0=np.loadtxt(name,delimiter=sep,skiprows=header)
+        if len(dat0.shape)==1:
+            #only intensity
+            dat0=np.column_stack((dat0,dat0))
+            dat0[:,0]=np.arange(0,len(dat0[:,1]),1)
+        if min(dat0[:,0])==0 and max(dat0[:,0])==0:
+            #input from vSpec
+            dat0[:,0]=np.arange(0,len(dat0[:,1]),1)
 
 print('spectroPy v0.1 - (c) Pavol Gajdos 2021\n')
 
@@ -362,40 +406,6 @@ if not os.path.isfile(name):
     input()
     sys.exit()
 
-if '.fit' in name:
-    #load fits image
-    f=fits.open(name)
-    #image/spectrum?
-    #TODO...
-
-else:
-    #load spectrum
-    f=open(name,'r')
-    lines=f.readlines()
-    f.close()
-
-    #detect header
-    header=0
-    for l in lines:
-        if l.strip()[0] not in '-+0123456789.#': header+=1
-        else: break
-
-    #detect separator type
-    l=lines[20]
-    sep=''
-    for x in l.strip():
-        if x in '-+0123456789.':
-            if len(sep)>0: break
-        else: sep+=x
-    if len(sep)==0: sep=' '
-
-    dat0=np.loadtxt(name,delimiter=sep,skiprows=header)
-    if len(dat0.shape)==1:
-        #only intensity
-        dat0=np.column_stack((dat0,dat0))
-        dat0[:,0]=np.arange(0,len(dat0[:,1]),1)
-    if min(dat0[:,0])==0 and max(dat0[:,0])==0:
-        #input from vSpec
-        dat0[:,0]=np.arange(0,len(dat0[:,1]),1)
+load(name)
 
 menu()  
