@@ -163,14 +163,12 @@ def plot(data,chI=None,title=None,manipulate=True):
     '''function for ploting for crop and calibrate'''
     MAX_CLICK = 0.5 # in seconds; anything longer is a drag motion
 
-    global xmin,xmax,time_onclick,figs
-
     def onclick(event):
-        global time_onclick
+        nonlocal time_onclick
         time_onclick=time.time()
 
     def onNoclick(event):
-        global xmin,xmax,figs
+        nonlocal xmin,xmax,figs
 
         if time.time()-time_onclick>MAX_CLICK: return
         xx=event.xdata
@@ -179,7 +177,8 @@ def plot(data,chI=None,title=None,manipulate=True):
         if event.button==1: xmin=xx
         elif event.button==3: xmax=xx
 
-        for i in figs: i.pop(0).remove()
+        if len(figs)>0:
+            for i in figs: i.pop(0).remove()
 
         figs=[]
         if xmin>-1e10:
@@ -193,6 +192,7 @@ def plot(data,chI=None,title=None,manipulate=True):
         mpl.xlim(xlim)
         mpl.ylim(ylim)
 
+    time_onclick=0
     xmin=-1e10
     xmax=-1e10
     fig=mpl.figure()
