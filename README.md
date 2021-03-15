@@ -20,7 +20,7 @@
  2. Apply dark-frame and flat-field corrections, register and stack images etc. (optional).
  3. Extract L channel (optional).
  4. Extract line profile of image with 0th order a 1st order spectrum - use e.g. SAO DS9 or MaximDL.
- 5. Start spectroPy: `python spectroPy.py your_profile`.
+ 5. Start spectroPy: `python spectroPy.py your_profile`. Code reads CSV, text and FITS files.
  6. Run calibration of spectrum:
    * Use 1-point calibration if you know a spectral resolution of used equipment.
    * Use 2-points calibration otherwise.
