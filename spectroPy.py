@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #spectroPy v0.1
-#(c) Pavol Gajdos, 11.3.2021
+#(c) Pavol Gajdos, 15.3.2021
 
 import sys
 import os
