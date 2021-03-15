@@ -1,2 +1,2 @@
 # spectroPy
- Reading and analysing 2D spectra in Python
+ Calibration and manipulation with grating spectra in Python.
