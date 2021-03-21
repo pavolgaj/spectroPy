@@ -130,7 +130,7 @@ def save():
             hdul.writeto(name1,overwrite=True)
         print('Saved')
 
-def fit_gauss(x,y,sgn):
+def fit_gauss(x,y,sgn,first=True):
     '''fit by Gauss profile'''
     def gauss(x,amp,x0,sigma,a,b):
         return amp*np.exp(-(x-x0)**2/(2*sigma**2))+a*x+b
@@ -150,7 +150,9 @@ def fit_gauss(x,y,sgn):
     sigma=np.sqrt(sum(y*(x-mean)**2)/sum(y))
     try:
         popt,pcov=curve_fit(gauss,x,y,p0=[amp,mean,sigma,p[0],p[1]])
-    except RuntimeError: return False
+    except RuntimeError:
+        if first: return fit_gauss(x,y,-sgn,first=False) #try change sgn -> emission line
+        return False
 
     mpl.figure()
     mpl.plot(x,y,'b.')
