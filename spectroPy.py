@@ -13,6 +13,7 @@ from astropy.io import fits
 dat=[]
 dat0=[]
 res=1
+name=''
 
 colors='rgb'
 
@@ -359,6 +360,7 @@ def menu():
     menu()
 
 def load1():
+    global name
     name=input('Input file: ').strip()
     if not os.path.isfile(name):
         print('File "'+name+'" is not found!')
