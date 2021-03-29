@@ -1,6 +1,6 @@
 #!/usr/bin/python3
-#spectroPy v0.1
-#(c) Pavol Gajdos, 15.3.2021
+#spectroPy v0.1.1
+#(c) Pavol Gajdos, 21.3.2021
 
 import sys
 import os
@@ -448,7 +448,7 @@ def load(name):
         input()
         load1()
 
-print('spectroPy v0.1 - (c) Pavol Gajdos 2021\n')
+print('spectroPy v0.1.1 - (c) Pavol Gajdos 2021\n')
 
 if len(sys.argv)>1: name=sys.argv[1]
 else: name=input('Input file: ').strip()
