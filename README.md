@@ -1,5 +1,6 @@
 # spectroPy
 
+[![DOI](https://zenodo.org/badge/346468076.svg)](https://zenodo.org/badge/latestdoi/346468076)
 ![](https://img.shields.io/github/languages/top/pavolgaj/spectropy.svg?style=flat)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/b82d1a45153c41169fcff464b15d4924)](https://app.codacy.com/gh/pavolgaj/spectroPy?utm_source=github.com&utm_medium=referral&utm_content=pavolgaj/spectroPy&utm_campaign=Badge_Grade_Settings)
 ![GitHub all releases](https://img.shields.io/github/downloads/pavolgaj/spectropy/total?label=GitHub&nbsp;downloads)
