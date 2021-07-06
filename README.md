@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/346468076.svg)](https://zenodo.org/badge/latestdoi/346468076)
 ![](https://img.shields.io/github/languages/top/pavolgaj/spectropy.svg?style=flat)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/b82d1a45153c41169fcff464b15d4924)](https://app.codacy.com/gh/pavolgaj/spectroPy?utm_source=github.com&utm_medium=referral&utm_content=pavolgaj/spectroPy&utm_campaign=Badge_Grade_Settings)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/3eab01ce85674f30995a1f05c7bda840)](https://www.codacy.com/gh/pavolgaj/spectroPy/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=pavolgaj/spectroPy&amp;utm_campaign=Badge_Grade)
 ![GitHub all releases](https://img.shields.io/github/downloads/pavolgaj/spectropy/total?label=GitHub&nbsp;downloads)
 
  Calibration and manipulation with grating spectra in Python. Focused mainly on spectra obtained using StarAnalyser SA-100 and SA-200.
