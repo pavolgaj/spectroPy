@@ -1,13 +1,25 @@
 #!/usr/bin/python3
-#spectroPy v0.1.1
-#(c) Pavol Gajdos, 21.3.2021
+
+#spectroPy v0.2.0
+#(c) Pavol Gajdos, 8.3.2022
 
 import sys
 import os
 import time
+
+#Linux-pyinstaller
+#import tkinter
+#import matplotlib
+#matplotlib.use('qt5agg')
+#import matplotlib.backends.backend_qt5agg
+#from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+#from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+#from PyQt5 import QtGui, QtCore
+
+
+import matplotlib.pyplot as mpl
 import numpy as np
 from scipy.optimize import curve_fit
-import matplotlib.pyplot as mpl
 from astropy.io import fits
 
 dat=[]
@@ -244,7 +256,7 @@ def crop():
 
         dat=dat[i,:]
 
-def calibrate(n=1):
+def calibrate(n=1,zeroth=True):
     '''calibrate using 1/2 points'''
     global dat,res
 
@@ -268,29 +280,57 @@ def calibrate(n=1):
     pos0=[]
     for chI in chs:
         ans1='y'  #repeat?
-        while ans1=='y':
-            print('\nSelect region with 0th order spectra:')
-            print('Channel',chI)
-            print('Left click - left border')
-            print('Right click - right border')
-            i1,i2=plot(dat0,chI,'Select region with 0th order spectra for channel '+str(chI))
-            if i1>=i2: return
-            i=np.where((x>i1)*(x<i2))[0]
+        if zeroth:
+            while ans1=='y':
+                print('\nSelect region with 0th order spectra:')
+                print('Channel',chI)
+                print('Left click - left border')
+                print('Right click - right border')
+                i1,i2=plot(dat0,chI,'Select region with 0th order spectra for channel '+str(chI))
+                if i1>=i2: return
+                i=np.where((x>i1)*(x<i2))[0]
+    
+                pos0i=fit_gauss(x[i],dat0[i,chI],1)
+    
+                if pos0i:
+                    ans=input('Is fitted profile good? (y/n) ')
+                    if ans=='y':
+                        pos0.append(pos0i)
+                        print('Peak possition:',round(pos0i,2))
+                        ans1='n'
+                    else:
+                        ans1=input('Repeat fitting? (y/n) ')
+                        if ans1=='n':return
+                else: input('Problem with fitting. Select different region.')
+            pos0=np.average(pos0)
+            if len(chs)>1: print('Peak possition:',round(pos0,2))
+            lam0=0
+        else:
+            ans1='y'  #repeat?
+            while ans1=='y':
+                print('\nSelect region with known spectral line:')
+                print('Channel',chI)
+                print('Left click - left border')
+                print('Right click - right border')
+                i1,i2=plot(dat0,chI,'Select region with known spectral line for channel '+str(chI))
+                if i1>=i2: return
+                i=np.where((x>i1)*(x<i2))[0]
 
-            pos0i=fit_gauss(x[i],dat0[i,chI],1)
+                pos0i=fit_gauss(x[i],dat0[i,chI],-1)
 
-            if pos0i:
-                ans=input('Is fitted profile good? (y/n) ')
-                if ans=='y':
-                    pos0.append(pos0i)
-                    print('Peak possition:',round(pos0i,2))
-                    ans1='n'
-                else:
-                    ans1=input('Repeat fitting? (y/n) ')
-                    if ans1=='n':return
-            else: input('Problem with fitting. Select different region.')
-    pos0=np.average(pos0)
-    if len(chs)>1: print('Peak possition:',round(pos0,2))
+                if pos0i:
+                    ans=input('Is fitted profile good? (y/n) ')
+                    if ans=='y':
+                        pos0.append(pos0i)
+                        print('Peak possition:',round(pos0i,2))
+                        ans1='n'
+                    else:
+                        ans1=input('Repeat fitting? (y/n) ')
+                        if ans1=='n': return
+                else: input('Problem with fitting. Select different region.')
+            pos0=np.average(pos0)
+            if len(chs)>1: print('Peak possition:',round(pos0,2))
+            lam0=float(input('Wavelength of line (A): '))
 
     if n==1:
         ans=input('Spectral resolution (A/px): ')
@@ -319,16 +359,103 @@ def calibrate(n=1):
                         ans1='n'
                     else:
                         ans1=input('Repeat fitting? (y/n) ')
-                        if ans1=='n':return
+                        if ans1=='n': return
                 else: input('Problem with fitting. Select different region.')
         pos1=np.average(pos1)
         if len(chs)>1: print('Peak possition:',round(pos1,2))
 
-        ans=input('Wavelength of line (A): ')
-        res=float(ans)/(pos1-pos0)
+        ans=float(input('Wavelength of line (A): '))
+        res=(ans-lam0)/(pos1-pos0)
         print('Spectral resolution (A/px):',round(abs(res),3))
 
-    lam=(x-pos0)*res
+    lam=(x-pos0)*res+lam0
+    dat=np.zeros(dat0.shape)
+    dat[:,0]=lam
+    for i in range(ch): dat[:,i+1]=dat0[:,i+1]
+
+    if res<0:
+        res*=-1
+        dat=dat[::-1,:]
+
+    print('Calibrated')
+    return lam
+    
+def calibrate_n():
+    '''calibrate using n points'''
+    global dat,res
+
+    x=dat0[:,0]
+    if dat0.shape[1]==2: ch=1
+    elif dat0.shape[1]<=4: ch=dat0.shape[1]-1
+    else: ch=3
+
+    plot(dat0,title='Input data',manipulate=False)
+
+    if ch==1:
+        chI=1
+        chs=[1]
+    else:
+        chs=' / '.join([str(x+1) for x in range(ch)])
+        if ch>1: chs+=' / a (all)'
+        ans=input('Color channel to fit - '+chs+': ')
+        if ans=='a': chs=list(range(1,ch+1))
+        else: chs=[int(ans)]
+
+    pos=[]
+    lam=[]
+    ans2='y'  #new line?
+    while ans2=='y':
+        pos0=[]
+        for chI in chs:
+            ans1='y'  #repeat?
+            while ans1=='y':
+                print('\nSelect region with known spectral line:')
+                print('Channel',chI)
+                print('Left click - left border')
+                print('Right click - right border')
+                i1,i2=plot(dat0,chI,'Select region with known spectral line for channel '+str(chI))
+                if i1>=i2: return
+                i=np.where((x>i1)*(x<i2))[0]
+    
+                pos0i=fit_gauss(x[i],dat0[i,chI],-1)
+    
+                if pos0i:
+                    ans=input('Is fitted profile good? (y/n) ')
+                    if ans=='y':
+                        pos0.append(pos0i)
+                        print('Peak possition:',round(pos0i,2))
+                        ans1='n'
+                    else:
+                        ans1=input('Repeat fitting? (y/n) ')
+                        if ans1=='n': return
+                else: input('Problem with fitting. Select different region.')
+        pos0=np.average(pos0)
+        if len(chs)>1: print('Peak possition:',round(pos0,2))
+        lam0=float(input('Wavelength of line (A): '))
+        pos.append(pos0)
+        lam.append(lam0)
+        ans2=input('Add new line? (y/n) ')
+    
+    ans='n' #repeat?
+    while ans=='n':
+        print('Number of lines:',len(pos))
+        n=int(input('Order of fitted polynom (<= '+str(len(pos)-1)+'): '))
+        fit=np.polyfit(pos,lam,n)
+        res=fit[-2]
+        print('Spectral resolution (A/px):',round(abs(res),3))
+        
+        mpl.figure()
+        mpl.plot(pos,lam,'bx')
+        xx=np.linspace(min(x),max(x),100)
+        mpl.plot(xx,np.polyval(fit,xx),'r-')
+        mpl.title('Calibration')
+        mpl.xlabel('Possition (px)')
+        mpl.ylabel('Wavelength (A)')
+        mpl.show()
+        
+        ans=input('Is calibration polynom good? (y/n) ')
+
+    lam=np.polyval(fit,x)
     dat=np.zeros(dat0.shape)
     dat[:,0]=lam
     for i in range(ch): dat[:,i+1]=dat0[:,i+1]
@@ -342,21 +469,25 @@ def calibrate(n=1):
 
 def menu():
     print('calibrate - 1 point: 1')
-    print('calibrate - 2 points: 2')
-    print('crop spectrum: 3')
-    print('plot spectrum: 4')
-    print('save spectrum: 5')
-    print('load new file: 6')
+    print('calibrate - 2 points (0th order): 2')
+    print('calibrate - 2 points (2 lines): 3')
+    print('calibrate - n points (n lines): 4')
+    print('crop spectrum: 5')
+    print('plot spectrum: 6')
+    print('save spectrum: 7')
+    print('load new file: 8')
     print('exit: 0')
     print('========================')
     opt=input('option: ')
     if int(opt)==0: sys.exit()
     elif int(opt)==1: calibrate(1)
     elif int(opt)==2: calibrate(2)
-    elif int(opt)==3: crop()
-    elif int(opt)==4: plot_spektrum()
-    elif int(opt)==5: save()
-    elif int(opt)==6: load1()
+    elif int(opt)==3: calibrate(2,zeroth=False)
+    elif int(opt)==4: calibrate_n()
+    elif int(opt)==5: crop()
+    elif int(opt)==6: plot_spektrum()
+    elif int(opt)==7: save()
+    elif int(opt)==8: load1()
     print('========================\n')
     # load new...?
     menu()
@@ -448,7 +579,7 @@ def load(name):
         input()
         load1()
 
-print('spectroPy v0.1.1 - (c) Pavol Gajdos 2021\n')
+print('spectroPy v0.2.0 - (c) Pavol Gajdos 2022\n')
 
 if len(sys.argv)>1: name=sys.argv[1]
 else: name=input('Input file: ').strip()
