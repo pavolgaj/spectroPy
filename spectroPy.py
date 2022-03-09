@@ -52,9 +52,12 @@ def plot_spektrum():
 
 def save():
     '''save spectrum in 1-3 channels'''
+    global dat
+    
     if len(dat)==0:
         print('Calibrate spectrum!')
         return
+    dat0=np.array(dat)
     ans=input('Save to file: csv (c) / text (t) / fits (f) ')
     name1=name[:name.rfind('.')]+'-spectrum'
     if dat.shape[1]==2: ch=1
@@ -93,6 +96,12 @@ def save():
             name1=input('Save to file: ').strip()
             if len(name1)==0: return
 
+        if max(np.diff(dat[:,0]))>=1.05*res:
+            print('Spectrum is modificated according to non-linear calibration!')
+            x=np.linspace(dat[0,0],dat[0,0]+res*len(dat[:,0]),len(dat[:,0]),endpoint=True)
+            for i in range(1,dat.shape[1]):
+                dat[:,i]=np.interp(x,dat[:,0],dat[:,i])
+            
         hdu=fits.PrimaryHDU(dat[:,1])
         hdu.header['CTYPE1']='Wavelength'
         hdu.header.comments['CTYPE1']='Axis Type'
@@ -141,6 +150,7 @@ def save():
                 hdul=fits.HDUList([hdu,hdu1,hdu2])
             hdul.writeto(name1,overwrite=True)
         print('Saved')
+    dat=np.array(dat0)
 
 def fit_gauss(x,y,sgn,first=True):
     '''fit by Gauss profile'''
@@ -440,13 +450,16 @@ def calibrate_n():
     while ans=='n':
         print('Number of lines:',len(pos))
         n=int(input('Order of fitted polynom (<= '+str(len(pos)-1)+'): '))
-        fit=np.polyfit(pos,lam,n)
-        res=fit[-2]
+        rr=np.polyfit(pos,lam,n,full=True)
+        fit=rr[0]
+        q=rr[1][0]
+        print('Quality of fit: %.3e' %q)
+        xx=np.linspace(min(x),max(x),100)
+        res=np.mean(np.diff(np.polyval(fit,xx))/np.diff(xx))
         print('Spectral resolution (A/px):',round(abs(res),3))
         
         mpl.figure()
         mpl.plot(pos,lam,'bx')
-        xx=np.linspace(min(x),max(x),100)
         mpl.plot(xx,np.polyval(fit,xx),'r-')
         mpl.title('Calibration')
         mpl.xlabel('Possition (px)')
@@ -468,26 +481,35 @@ def calibrate_n():
     return lam
 
 def menu():
-    print('calibrate - 1 point: 1')
-    print('calibrate - 2 points (0th order): 2')
-    print('calibrate - 2 points (2 lines): 3')
-    print('calibrate - n points (n lines): 4')
-    print('crop spectrum: 5')
-    print('plot spectrum: 6')
-    print('save spectrum: 7')
-    print('load new file: 8')
+    print('calibrate spectrum: 1')
+    print('crop spectrum: 2')
+    print('plot spectrum: 3')
+    print('save spectrum: 4')
+    print('load new file: 5')
     print('exit: 0')
     print('========================')
     opt=input('option: ')
+    try: int(opt)
+    except ValueError: menu()
     if int(opt)==0: sys.exit()
-    elif int(opt)==1: calibrate(1)
-    elif int(opt)==2: calibrate(2)
-    elif int(opt)==3: calibrate(2,zeroth=False)
-    elif int(opt)==4: calibrate_n()
-    elif int(opt)==5: crop()
-    elif int(opt)==6: plot_spektrum()
-    elif int(opt)==7: save()
-    elif int(opt)==8: load1()
+    elif int(opt)==1: 
+        print('\ncalibrate')
+        print('1 point (0th order): 1')
+        print('2 points (0th order): 2')
+        print('2 points (2 lines): 3')
+        print('n points (n lines): 4')
+        print('========================')
+        opt=input('option: ')
+        try: int(opt)
+        except ValueError: opt='-10'
+        if int(opt)==1: calibrate(1)
+        elif int(opt)==2: calibrate(2)
+        elif int(opt)==3: calibrate(2,zeroth=False)
+        elif int(opt)==4: calibrate_n()
+    elif int(opt)==2: crop()
+    elif int(opt)==3: plot_spektrum()
+    elif int(opt)==4: save()
+    elif int(opt)==5: load1()
     print('========================\n')
     # load new...?
     menu()
