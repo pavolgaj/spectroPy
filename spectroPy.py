@@ -452,7 +452,8 @@ def calibrate_n():
         n=int(input('Order of fitted polynom (<= '+str(len(pos)-1)+'): '))
         rr=np.polyfit(pos,lam,n,full=True)
         fit=rr[0]
-        q=rr[1][0]
+        if len(rr[1])==0: q=0
+        else: q=rr[1][0]
         print('Quality of fit: %.3e' %q)
         xx=np.linspace(min(x),max(x),100)
         res=np.mean(np.diff(np.polyval(fit,xx))/np.diff(xx))
@@ -511,7 +512,6 @@ def menu():
     elif int(opt)==4: save()
     elif int(opt)==5: load1()
     print('========================\n')
-    # load new...?
     menu()
 
 def load1():
